@@ -4,7 +4,7 @@
 #include <pthread.h>
 
 #include "defs.h"
-#include "hash.h"
+#include "hash_list_lock.h"
 
 #define SAMPLES_TO_COLLECT   10000000
 #define RAND_NUM_UPPER_BOUND   100000
@@ -153,19 +153,21 @@ void *process (void *ptr){
 		  // force the sample to be within the range of 0..RAND_NUM_UPPER_BOUND-1
 		  key = rnum % RAND_NUM_UPPER_BOUND;
 		  
-		pthread_mutex_lock(&fastmutex);
-		  // if this sample has not been counted before
-		  if (!(s = h.lookup(key))) {
+		
+			  // if this sample has not been counted before
+			  if (!(s = h.lookup(key))) {
 
-			  // insert a new element for it into the hash table
-			  s = new sample(key);
-			  h.insert(s);
-		  }
+				  // insert a new element for it into the hash table
+				  s = new sample(key);
+				  h.insert(s);
+			  }
 
 		  // increment the count for the sample
+		h.lock_list(key);
 		  s->count++;
+		h.unlock_list(key);
+
 		  
-		pthread_mutex_unlock(&fastmutex);
 	  }
   }
 

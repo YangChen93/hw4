@@ -16,7 +16,7 @@ template<class Ele, class Keytype> class hash {
   unsigned my_size_mask;
   list<Ele,Keytype> *entries;
   list<Ele,Keytype> *get_list(unsigned the_idx);
-  pthread_mutex_t *mutex;
+  pthread_mutex_t *lock;
 
  public:
   void setup(unsigned the_size_log=5);
@@ -40,10 +40,8 @@ hash<Ele, Keytype>::setup(unsigned the_size_log) {
 	lock = new pthread_mutex_t[my_size];
 
 	for (i = 0; i < my_size; i++) {
-		if (pthread_mutex_init(&lock[i], NULL) != 0) {
-			printf("\n mutex init failed\n");
-			return 1;
-		}
+		pthread_mutex_init(&lock[i], NULL);
+		
 	}
 }
 
@@ -105,14 +103,14 @@ hash<Ele,Keytype>::insert(Ele *e){
 
 template<class Ele, class Keytype>
 void
-hash <Ele, Keytepe>::lock_list(Keytype the_key) {
-	pthread_mutex_lock(&mutex[HASH_INDEX(the_key, my_size_mask)]);
+hash <Ele, Keytype>::lock_list(Keytype the_key) {
+	pthread_mutex_lock(&lock[HASH_INDEX(the_key, my_size_mask)]);
 }
 
 template<class Ele, class Keytype>
 void
-hash <Ele, Keytepe>::unlock_list(Keytype the_key) {
-	pthread_mutex_unlock(&mutex[HASH_INDEX(the_key, my_size_mask)]);
+hash <Ele, Keytype>::unlock_list(Keytype the_key) {
+	pthread_mutex_unlock(&lock[HASH_INDEX(the_key, my_size_mask)]);
 }
 
 

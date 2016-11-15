@@ -22,7 +22,7 @@ team_t team = {
     "robbie.chen@mail.utoronto.ca",                 /* First member email address */
 
     "Zhongyang Xiao",                           /* Second member full name */
-    "99",                           /* Second member student number */
+    "999944173",                           /* Second member student number */
     "sam.xiao@mail.utoronto.ca"                            /* Second member email address */
 };
 
