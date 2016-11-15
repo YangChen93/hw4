@@ -121,6 +121,7 @@ for (i =0; i < num_threads; i++){
 	pthread_join(thread[i], NULL);
 }
 
+// print a list of the frequency of all samples
 h.print();
 
 
@@ -169,6 +170,6 @@ void *process (void *ptr){
 	  }
   }
 
-  // print a list of the frequency of all samples
+  
   
 }
