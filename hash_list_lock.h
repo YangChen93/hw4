@@ -16,7 +16,7 @@ template<class Ele, class Keytype> class hash {
   unsigned my_size_mask;
   list<Ele,Keytype> *entries;
   list<Ele,Keytype> *get_list(unsigned the_idx);
-  pthread_mutex_t *lock;
+  pthread_mutex_t * lock;
 
  public:
   void setup(unsigned the_size_log=5);
@@ -62,8 +62,9 @@ hash<Ele,Keytype>::lookup(Keytype the_key){
 
   l = &entries[HASH_INDEX(the_key,my_size_mask)];
   lock_list(the_key);
-  return l->lookup(the_key);
+  Ele* val= l->lookup(the_key);
   unlock_list(the_key);
+  return val;
 }  
 
 template<class Ele, class Keytype> 
