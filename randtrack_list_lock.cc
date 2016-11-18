@@ -57,7 +57,7 @@ public:
 hash<sample,unsigned> h;
 
 void *process (void *ptr);
-pthread_mutex_t fastmutex = PTHREAD_MUTEX_INITIALIZER;   //mutex lock
+//pthread_mutex_t fastmutex = PTHREAD_MUTEX_INITIALIZER;   //mutex lock
 
 int main (int argc, char* argv[]){
   // Print out team information
@@ -137,10 +137,6 @@ void *process (void *ptr){
   // process streams starting with different initial numbers
   for (i = p->startpoint; i < (p->startpoint + p->num_stream); i++) {
 	  rnum = i;
-
-
-	  
-
 
   // collect a number of samples
 	  for (j = 0; j < SAMPLES_TO_COLLECT; j++) {
