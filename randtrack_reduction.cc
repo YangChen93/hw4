@@ -52,7 +52,7 @@ public:
 	int hash_table_number;
 };
 
-// This instantiates an empty hash table
+// This instantiates an empty hash table and four independent hash tables for each threads
 // it is a C++ template, which means we define the types for
 // the element and key value here: element is "class sample" and
 // key value is "unsigned".  
@@ -61,7 +61,7 @@ hash<sample,unsigned> h_individual[4];
 
 
 void *process (void *ptr);
-pthread_mutex_t fastmutex = PTHREAD_MUTEX_INITIALIZER;   //mutex lock
+
 
 int main (int argc, char* argv[]){
   // Print out team information
@@ -76,8 +76,6 @@ int main (int argc, char* argv[]){
   printf( "Student 2 Email: %s\n", team.email2 );
   printf( "\n" );
 
- 
-  int rnum;
   unsigned key;
   sample *s;
   
@@ -93,6 +91,7 @@ if (num_threads != 1 & num_threads != 2 & num_threads !=4){
 	printf("please enter correct number of threads, it should be 1, 2 or4");
 	exit(1);
 }
+
   // initialize a 16K-entry (2**14) hash of empty lists
   h.setup(14);
   h_individual[0].setup(14);
@@ -136,31 +135,30 @@ if(num_threads == 1) {
 for (i =0; i < num_threads; i++){
 	pthread_join(thread[i], NULL);
 }
+
 for (i=0; i<num_threads; i++){
      for (j=0; j < SAMPLES_TO_COLLECT; j++) {
           if(s=h_individual[i].lookup(j)){
                sample *tmp;
                if (!(tmp = h.lookup(j))) {
-
-			  // insert a new element for it into the hash table
-			  tmp = new sample(j);
-			  h.insert(tmp);
-		  }
+                    // insert a new element for it into the hash table
+                    tmp = new sample(j);
+			     h.insert(tmp);
+		     }
 
 		  // increment the count for the sample
 		  tmp->count += s->count;
-}
+          }
      }
 }
+
 // print a list of the frequency of all samples
 h.print();
-
-
 }
 
-void *process (void *ptr){
-	argument *p = (argument*) ptr;
 
+void *process (void *ptr){
+  argument *p = (argument*) ptr;
   int i,j,k;
   int rnum;
   unsigned key;
@@ -181,7 +179,7 @@ void *process (void *ptr){
 		  // force the sample to be within the range of 0..RAND_NUM_UPPER_BOUND-1
 		  key = rnum % RAND_NUM_UPPER_BOUND;
 		  
-		//pthread_mutex_lock(&fastmutex);
+		  
 		  // if this sample has not been counted before
 		  if (!(s = h_individual[p->hash_table_number].lookup(key))) {
 
@@ -191,12 +189,7 @@ void *process (void *ptr){
 		  }
 
 		  // increment the count for the sample
-		  s->count++;
-		  
-		//pthread_mutex_unlock(&fastmutex);
+		  s->count++;		  
 	  }
-  }
-
-  
-  
+  } 
 }
