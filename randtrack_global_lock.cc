@@ -26,29 +26,32 @@ team_t team = {
     "sam.xiao@mail.utoronto.ca"                            /* Second member email address */
 };
 
-unsigned num_threads;
-unsigned samples_to_skip;
 
 class sample;
 class argument;
+void *process(void *args);
 
 class sample {
   unsigned my_key;
- public:
-  sample *next;
-  unsigned count;
+  public:
+    sample *next;
+    unsigned count;
 
-  sample(unsigned the_key){my_key = the_key; count = 0;};
-  unsigned key(){return my_key;}
-  void print(FILE *f){printf("%d %d\n",my_key,count);}
+    sample(unsigned the_key){my_key = the_key; count = 0;};
+    unsigned key(){return my_key;}
+    void print(FILE *f){printf("%d %d\n",my_key,count);}
 };
-
 
 class argument {
-public:
-	int startpoint;			 /*starting point of each thread*/
-	int num_stream;			/*the number of seed streams that each thread have*/
+  public:
+    int start;   /*starting point of each thread*/
+    int end;     /*the ending index */
 };
+
+
+// *******Global Variables*******
+unsigned num_threads;
+unsigned samples_to_skip;
 
 // This instantiates an empty hash table
 // it is a C++ template, which means we define the types for
@@ -56,10 +59,14 @@ public:
 // key value is "unsigned".  
 hash<sample,unsigned> h;
 
-void *process (void *ptr);
-pthread_mutex_t fastmutex = PTHREAD_MUTEX_INITIALIZER;   //mutex lock
+// Global mutex lock
+pthread_mutex_t global_lock = PTHREAD_MUTEX_INITIALIZER;
+// *******Global Variables*******
+
 
 int main (int argc, char* argv[]){
+  int i, j, num_seeds;
+
   // Print out team information
   printf( "Team Name: %s\n", team.team );
   printf( "\n" );
@@ -80,96 +87,68 @@ int main (int argc, char* argv[]){
   sscanf(argv[1], " %d", &num_threads); // not used in this single-threaded version
   sscanf(argv[2], " %d", &samples_to_skip);
 
-if (num_threads != 1 & num_threads != 2 & num_threads !=4){
-	printf("please enter correct number of threads, it should be 1, 2 or4");
-	exit(1);
-}
   // initialize a 16K-entry (2**14) hash of empty lists
   h.setup(14);
 
-//create pthread
-	pthread_t thread[num_threads];
-	argument *p = new argument[num_threads];
-	int i, start = 0;
+  num_seeds = NUM_SEED_STREAMS / num_threads;
+  argument *args = new argument[num_threads];
+  pthread_t threads[num_threads];
 
+  // Spawn threads
+  for (i=0; i<num_threads; i++) {
+    args[i].start = i * num_seeds;
+    args[i].end = args[i].start + num_seeds;
 
-if (num_threads ==2) {
-	for (i=0; i<2; i++){
-		p[i].startpoint = start;
-		p[i].num_stream = 2;
-		pthread_create(&thread[i], NULL, process, (void*) &p[i]);
-		start +=2;
-	}
+    pthread_create(&threads[i], NULL, process, (void *) &args[i]);
+  }
+  // Wait for all spawn threads to finish
+  for (j=0; j<num_threads; j++) {
+    pthread_join(threads[j], NULL);
+  }
+
+  // print a list of the frequency of all samples
+  h.print();
 }
 
-if (num_threads == 4) {
-	for (i=0; i<4; i++){
-		p[i].startpoint = start;
-		p[i].num_stream = 1;
-		pthread_create(&thread[i], NULL, process, (void*) &p[i]);
-		start +=1;
-	}
-}
 
-if(num_threads == 1) {
-	p[0].startpoint = start;
-	p[0].num_stream = 4;
-	pthread_create(&thread[0], NULL, process, (void*)&p[0]);
-}
-
-for (i =0; i < num_threads; i++){
-	pthread_join(thread[i], NULL);
-}
-
-// print a list of the frequency of all samples
-h.print();
-
-
-}
-
-void *process (void *ptr){
-	argument *p = (argument*) ptr;
+void *process(void *void_args) {
 
   int i,j,k;
   int rnum;
   unsigned key;
   sample *s;
 
+  argument *args = (argument *) void_args;
+
   // process streams starting with different initial numbers
-  for (i = p->startpoint; i < (p->startpoint + p->num_stream); i++) {
-	  rnum = i;
+  for (i=args->start; i< args->end; i++){
+    rnum = i;
+    // collect a number of samples
+    for (j=0; j<SAMPLES_TO_COLLECT; j++){
+      // skip a number of samples
+      for (k=0; k<samples_to_skip; k++){
+        rnum = rand_r((unsigned int*)&rnum);
+      }
 
+      // force the sample to be within the range of 0..RAND_NUM_UPPER_BOUND-1
+      key = rnum % RAND_NUM_UPPER_BOUND;
+      // Lock on critical section of reading and writing to hash
+      pthread_mutex_lock(&global_lock);
 
-	  
+      // if this sample has not been counted before
+      if (!(s = h.lookup(key))){
 
+        // insert a new element for it into the hash table
+        s = new sample(key);
+        h.insert(s);
+      }
 
-  // collect a number of samples
-	  for (j = 0; j < SAMPLES_TO_COLLECT; j++) {
+      // increment the count for the sample
+      s->count++;
 
-		  // skip a number of samples
-		  for (k = 0; k < samples_to_skip; k++) {
-			  rnum = rand_r((unsigned int*)&rnum);
-		  }
-
-		  // force the sample to be within the range of 0..RAND_NUM_UPPER_BOUND-1
-		  key = rnum % RAND_NUM_UPPER_BOUND;
-		  
-		pthread_mutex_lock(&fastmutex);
-		  // if this sample has not been counted before
-		  if (!(s = h.lookup(key))) {
-
-			  // insert a new element for it into the hash table
-			  s = new sample(key);
-			  h.insert(s);
-		  }
-
-		  // increment the count for the sample
-		  s->count++;
-		  
-		pthread_mutex_unlock(&fastmutex);
-	  }
+      // Unock on critical section
+      pthread_mutex_unlock(&global_lock);
+    }
   }
 
-  
-  
 }

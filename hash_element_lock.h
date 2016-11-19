@@ -20,7 +20,7 @@ template<class Ele, class Keytype> class hash {
 
  public:
   void setup(unsigned the_size_log=5);
-  void insert(Ele *e);
+  void insert(Ele **e);
   Ele *lookup(Keytype the_key);
   void print(FILE *f=stdout);
   void reset();
@@ -32,17 +32,17 @@ template<class Ele, class Keytype> class hash {
 template<class Ele, class Keytype> 
 void 
 hash<Ele, Keytype>::setup(unsigned the_size_log) {
-	my_size_log = the_size_log;
-	my_size = 1 << my_size_log;
-	my_size_mask = (1 << my_size_log) - 1;
-	entries = new list<Ele, Keytype>[my_size];
-	int i;
-	lock = new pthread_mutex_t[my_size];
+    my_size_log = the_size_log;
+    my_size = 1 << my_size_log;
+    my_size_mask = (1 << my_size_log) - 1;
+    entries = new list<Ele, Keytype>[my_size];
+    int i;
+    lock = new pthread_mutex_t[my_size];
 
-	for (i = 0; i < my_size; i++) {
-		pthread_mutex_init(&lock[i], NULL);
-		
-	}
+    for (i = 0; i < my_size; i++) {
+        pthread_mutex_init(&lock[i], NULL);
+        
+    }
 }
 
 template<class Ele, class Keytype> 
@@ -61,9 +61,7 @@ hash<Ele,Keytype>::lookup(Keytype the_key){
   list<Ele,Keytype> *l;
 
   l = &entries[HASH_INDEX(the_key,my_size_mask)];
-  lock_list(the_key);
   Ele* val= l->lookup(the_key);
-  unlock_list(the_key);
   return val;
 }  
 
@@ -94,12 +92,23 @@ hash<Ele,Keytype>::cleanup(){
   delete [] entries;
 }
 
+// Since lookup and insert are not autonomous, we need to do a look up
+// again after acquiring the lock, and replace the original element with
+// the existing one to prevent inserting the same element twice
 template<class Ele, class Keytype> 
-void 
-hash<Ele,Keytype>::insert(Ele *e){
-  lock_list(e->key());
-  entries[HASH_INDEX(e->key(),my_size_mask)].push(e);
-  unlock_list(e->key());
+void
+hash<Ele,Keytype>::insert(Ele **e){
+  Ele *element;
+  Keytype key = (*e)->key();
+  lock_list(key);
+  if (!(element = lookup(key))) {
+    // Element not exist in the hash table
+    entries[HASH_INDEX((*e)->key(),my_size_mask)].push(*e);
+  } else {
+    // Element exist, don't insert and replace original element
+    *e = element;
+  }
+  unlock_list(key);
 }
 
 template<class Ele, class Keytype>
